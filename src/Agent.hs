@@ -6,6 +6,7 @@ module Agent (
   simpleHeur
   ) where
 
+import Data.List (sortOn)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
@@ -54,7 +55,7 @@ minimaxValue d heur p a b s
     nextStates = Set.map (playMove s) moves
 
 maxVal :: Int -> (RState -> Value) -> Value -> Value -> Set.Set RState -> Value
-maxVal d heur a b = maxVal_ d heur a b (-1.0) . enqueueStates
+maxVal d heur a b = maxVal_ d heur a b (-1.0) . (enqueueStates Black heur)
 
 maxVal_ ::
   Int ->
@@ -75,7 +76,7 @@ maxVal_ d heur a b v = \case
       a_   = max a v_
 
 minVal :: Int -> (RState -> Value) -> Value -> Value -> Set.Set RState -> Value
-minVal d heur a b = minVal_ d heur a b (2.0) . enqueueStates
+minVal d heur a b = minVal_ d heur a b (2.0) . (enqueueStates White heur)
 
 minVal_ ::
   Int ->
@@ -95,8 +96,11 @@ minVal_ d heur a b v = \case
       v_   = min v xVal
       b_   = min b v_
 
-enqueueStates :: Set.Set RState -> [RState]
-enqueueStates = Set.toList
--- TODO: think about better ordering method - most promising moves first?
+enqueueStates :: Player -> (RState -> Value) -> Set.Set RState -> [RState]
+enqueueStates p heur = sortOn ranker . Set.toList
+  where
+    ranker = case p of
+      Black -> (* (-1)) . heur
+      White -> heur
 
 -- further TODO: read stuart abt quiescence or ordering or whatever
