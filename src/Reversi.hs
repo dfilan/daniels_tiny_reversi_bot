@@ -38,7 +38,7 @@ data RState = RState { size  :: Int,
 
 instance Show RState where
   show (RState n b) = foldl' (\ a b -> a ++ "\n" ++ b) "" catRows
-  -- this will look ugly if n >= 24
+  -- this will look ugly if n >= 26
     where
       numDigs    = 1 + (floor $ logBase 10.0 $ fromIntegral (2*n))
       numAlphas  = 1 + (floor $ logBase 24.0 $ fromIntegral (2*n))
