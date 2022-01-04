@@ -140,4 +140,7 @@ stabilityHeur_ s = pBlackWin + (0.5 * pTie)
     -- == P(2*X + numBlack < totalNum + numWhite)
     -- == P(X < 0.5*(totalNum + numWhite - numBlack))
 
+mixStabMovesHeurs :: Float -> RState -> Value
+mixStabMovesHeurs p s = p * (stabilityHeur s) + (1-p) * (legalMovesHeur s)
+
 -- further TODO: read stuart abt quiescence or ordering or whatever
