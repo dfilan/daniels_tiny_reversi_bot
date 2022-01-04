@@ -7,4 +7,9 @@ TODO: improve heuristic. Ideas:
 - think about odd vs even number of successive takes across a line.
   - maybe parity until you get a corner?
 - focus on things of length >= 3
-- MCTS somehow.
+- in early game, focus on limiting opponent's available moves
+- MCTS somehow - perhaps to calibrate above metrics (regress win prob. on them?)
+
+Ways to get even better:
+- API for bots to compete against other bots
+- Stored games that bots can access to improve heuristic functions
