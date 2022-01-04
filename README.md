@@ -2,6 +2,9 @@ Simple reversi bot.
 
 How to play: compile src/Main.hs
 
+Biggest TODO: figure out how to use cabal to install random-fu-0.2.7.7,
+so that my code actually compiles
+
 TODO: improve heuristic. Ideas:
 - compare 'locked tokens', i.e. those tokens that can't be taken from you.
 - think about odd vs even number of successive takes across a line.

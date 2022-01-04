@@ -3,7 +3,8 @@
 module Reversi (
   Player(..),
   Move(..),
-  RState(..),
+  RState,
+  boardSize,
   Result(..),
   startBoard,
   playMove,
@@ -12,7 +13,8 @@ module Reversi (
   isEndState,
   countTokens,
   getResult,
-  swapPlayer
+  swapPlayer,
+  numStable
   ) where
 
 import qualified Data.Map as Map
@@ -32,12 +34,13 @@ type Location = (Int, Int)
 
 data Move = Move { player :: Player, loc :: Location } deriving (Eq, Ord, Show)
 
-data RState = RState { size  :: Int,
-                       board :: Map.Map Location Token }
+data RState = RState { boardSize :: Int,
+                       boardMap  :: Map.Map Location Token
+                     }
   deriving (Eq, Ord)
 
 instance Show RState where
-  show (RState n b) = foldl' (\ a b -> a ++ "\n" ++ b) "" catRows
+  show (RState n b) = foldl' (\ x y -> x ++ "\n" ++ y) "" catRows
   -- this will look ugly if n >= 26
     where
       numDigs    = 1 + (floor $ logBase 10.0 $ fromIntegral (2*n))
@@ -100,14 +103,14 @@ getFileNames = (flip take) cartPrds
     
 startBoard :: Int -> RState
 startBoard n = RState n $ Map.fromList [((n-1, n-1), WhiteTok),
-                                        ((n-1, n), BlackTok),
-                                        ((n, n-1), BlackTok),
-                                        ((n,n), WhiteTok)]
+                                         ((n-1, n), BlackTok),
+                                         ((n, n-1), BlackTok),
+                                         ((n,n), WhiteTok)]
 
 boardLocs :: RState -> Set.Set Location
 boardLocs s = Set.cartesianProduct range range
   where
-    n = size s
+    n = boardSize s
     range = Set.fromList [0..(2*n - 1)]
 
 intsBetween :: Int -> Int -> [Int]
@@ -127,24 +130,24 @@ positionsBetween (p1, p2) (q1, q2)
 
 isLegalMove :: RState -> Move -> Bool
 isLegalMove s m
-  | not $ isInRange m s                     = False
-  | Map.lookup (loc m) (board s) /= Nothing = False
-  | not $ Set.null $ getMatches m s         = True
-  | otherwise                               = False
+  | not $ isInRange (loc m) s                  = False
+  | Map.lookup (loc m) (boardMap s) /= Nothing = False
+  | not $ Set.null $ getMatches m s            = True
+  | otherwise                                  = False
 
-isInRange :: Move -> RState -> Bool
-isInRange m s
-  | fst (loc m) < 0           = False
-  | snd (loc m) < 0           = False
-  | fst (loc m) >= 2 * size s = False
-  | snd (loc m) >= 2 * size s = False
-  | otherwise                 = True
+isInRange :: Location -> RState -> Bool
+isInRange (x,y) s
+  | x < 0                = False
+  | y < 0                = False
+  | x >= 2 * boardSize s = False
+  | y >= 2 * boardSize s = False
+  | otherwise            = True
 
 capInDir :: Move -> RState -> (Int, Int) -> Maybe Location
 capInDir m s (x,y) = capInDir_ 0 m s (x,y)
 
 capInDir_ :: Int -> Move -> RState -> (Int, Int) -> Maybe Location
-capInDir_ n m s (x,y) = case Map.lookup nextLoc $ board s of
+capInDir_ n m s (x,y) = case Map.lookup nextLoc $ boardMap s of
   Nothing -> Nothing
   Just t  -> case (t == (playerToToken $ player m)) of
     True  -> if' (n == 0) Nothing $ Just nextLoc
@@ -160,15 +163,16 @@ getMatches m s = Set.fromList $ catMaybes $ capInDir m s <$> dirList
                (1, -1), (1, 0), (1, 1)]
 
 playMove :: RState -> Move -> RState
-playMove s m = if' (isLegalMove s m) flipState{board=addedToken} s
+playMove s m = if' (isLegalMove s m) flipState{boardMap=addedToken} s
   where
     matches    = getMatches m s
     locsToFlip = Set.unions $ Set.map (positionsBetween $ loc m) matches
     flipState  = foldr flipLoc s locsToFlip
-    addedToken = Map.insert (loc m) (playerToToken $ player m) $ board flipState
+    addedToken =
+      Map.insert (loc m) (playerToToken $ player m) $ boardMap flipState
 
 flipLoc :: Location -> RState -> RState
-flipLoc l s = RState (size s) $ Map.adjust swapTok l $ board s
+flipLoc l s = s{boardMap = Map.adjust swapTok l $ boardMap s}
 
 getLegalMoves :: RState -> Player -> Set.Set Move
 getLegalMoves s p = Set.filter (isLegalMove s) allMoves
@@ -184,7 +188,7 @@ countTokens :: RState -> Token -> Int
 countTokens s t = length $ filter (== t) ts
   where
     ls = boardLocs s
-    ts = catMaybes $ (flip Map.lookup $ board s) <$> Set.toList ls
+    ts = catMaybes $ (flip Map.lookup $ boardMap s) <$> Set.toList ls
 
 getResult :: RState -> Maybe Result
 getResult s
@@ -195,3 +199,50 @@ getResult s
   where
     numBlacks = countTokens s BlackTok
     numWhites = countTokens s WhiteTok
+
+numStable :: RState -> Player -> Int
+numStable s p = Set.size $ Set.filter (isStable s) myLocs
+  where
+    isMine loc = Map.lookup loc (boardMap s) == Just (playerToToken p)
+    myLocs     = Set.filter isMine $ boardLocs s
+
+isStable :: RState -> Location -> Bool
+isStable s loc = and $ stableInDirection s loc <$> directions
+  where
+    directions = [(-1, -1), (-1, 0), (-1, 1), (0, 1)]
+-- you're stable if in each cardinal direction, either there's one orientation
+-- where you go through pieces of your own colour until you hit a wall,
+-- or you're already 'sandwiched' between two pieces of the opposite colour.
+-- (i.e. in both orientations, you hit a piece of the opposite colour before
+-- you hit an empty grid location)
+
+stableInDirection :: RState -> Location -> (Int, Int) -> Bool
+stableInDirection s (x,y) (dx, dy) = case Map.lookup (x,y) $ boardMap s of
+  Nothing -> False
+  Just t  -> hitWall s t (x,y) (dx, dy) || sandwiched s t (x,y) (dx, dy)
+
+hitWall :: RState -> Token -> Location -> (Int, Int) -> Bool
+hitWall s t (x,y) (dx, dy) =
+  hitWall_ True s t (x,y) (dx, dy) || hitWall_ False s t (x,y) (dx, dy)
+
+hitWall_ :: Bool -> RState -> Token -> Location -> (Int, Int) -> Bool
+hitWall_ goPos s t (x,y) (dx, dy)
+  | not $ isInRange nextLoc s = True
+  | otherwise                 = case Map.lookup nextLoc $ boardMap s of
+      Nothing -> False
+      Just t_ -> if' (t_ /= t) False $ hitWall_ goPos s t nextLoc (dx, dy)
+  where
+    f       = if' goPos (+) $ flip (-)
+    nextLoc = bimap (f dx) (f dy) (x,y)
+
+sandwiched :: RState -> Token -> Location -> (Int, Int) -> Bool
+sandwiched  s t (x, y) (dx, dy) =
+  sandwiched_ True s t (x, y) (dx, dy) && sandwiched_ False s t (x, y) (dx, dy)
+
+sandwiched_ :: Bool -> RState -> Token -> Location -> (Int, Int) -> Bool
+sandwiched_ goPos s t (x, y) (dx, dy) = case Map.lookup nextLoc $ boardMap s of
+  Nothing -> False
+  Just t_ -> if' (t_ /= t) True $ sandwiched_ goPos s t nextLoc (dx, dy)
+  where
+    f       = if' goPos (+) $ flip (-)
+    nextLoc = bimap (f dx) (f dy) (x,y)

@@ -7,6 +7,7 @@ module Agent (
   ) where
 
 import Data.List (sortOn)
+import Data.Random.Distribution
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
@@ -24,10 +25,13 @@ endValue = \case
   WhiteWin -> 0.0
 -- heuristics should agree with endValue . getResult
 
-simpleHeur :: RState -> Value
-simpleHeur b = case getResult b of
-  Nothing -> 0.5
+incorporateResult :: (RState -> Value) -> RState -> Value
+incorporateResult heur s = case getResult s of
+  Nothing -> heur s
   Just r  -> endValue r
+
+simpleHeur :: RState -> Value
+simpleHeur = incorporateResult $ const 0.5
   -- TODO: incorporate MCTS
 
 minimaxMoveVal ::
@@ -102,5 +106,38 @@ enqueueStates p heur = sortOn ranker . Set.toList
     ranker = case p of
       Black -> (* (-1)) . heur
       White -> heur
+
+numLegalMoves :: RState -> Player -> Int
+numLegalMoves = (Set.size .) . getLegalMoves
+
+legalMovesHeur :: RState -> Value
+legalMovesHeur = incorporateResult legalMovesHeur_
+
+legalMovesHeur_ :: RState -> Value
+legalMovesHeur_ s = bMoves / (bMoves + wMoves)
+  where
+    bMoves = fromIntegral $ numLegalMoves s Black
+    wMoves = fromIntegral $ numLegalMoves s White
+
+stabilityHeur :: RState -> Value
+stabilityHeur = incorporateResult stabilityHeur_
+
+stabilityHeur_ :: RState -> Value
+stabilityHeur_ s = pBlackWin + (0.5 * pTie)
+  where
+    numStableBlack = numStable s Black
+    numStableWhite = numStable s White
+    totalNum       = (2 * (boardSize s))^2
+    numUnclear     = totalNum - numStableBlack - numStableWhite
+    threshNum      = 0.5 * (totalNum + numWhite - numBlack)
+    pWhiteWin      = integralBinomialCDF numUnclear 0.5 $ threshNum - 1
+    pTie           = integralBinomialPDF numUnclear 0.5 threshNum
+    pBlackWin      = 1.0 - pWhiteWin - pTie
+    -- P(White wins) == P(X + numBlack < (totalNum - X) + numWhite)
+    -- where X ~ Binom(numUnclear, 0.5) is the num of unclear squares that turn
+    -- black.
+    -- manipuulating that, P(White wins)
+    -- == P(2*X + numBlack < totalNum + numWhite)
+    -- == P(X < 0.5*(totalNum + numWhite - numBlack))
 
 -- further TODO: read stuart abt quiescence or ordering or whatever
