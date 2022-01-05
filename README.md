@@ -16,3 +16,7 @@ TODO: improve heuristic. Ideas:
 Ways to get even better:
 - API for bots to compete against other bots
 - Stored games that bots can access to improve heuristic functions
+
+Housekeeping:
+- rename Agent.hs to MinimaxAgent.hs
+- move heuristics to their own file?
