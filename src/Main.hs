@@ -157,9 +157,6 @@ tournamentSizeDepth :: Int -> Int -> [Value]
 tournamentSizeDepth n d = scorePlayerN resultLists <$> [0..(numPlayers - 1)]
   where
     pairsList         = getTournPairs $ allAgents d
-    -- simp              = (fmap fst) .: minimaxMoveVal 3 simpleHeur
-    -- leg               = (fmap fst) .: minimaxMoveVal 3 legalMovesHeur
-    -- playPair (a1, a2) = playAgents n simp leg
     playPair (a1, a2) = playAgents n a1 a2
     numPlayers        = length $ allAgents d
     resultLists       = iterSplit numPlayers $! playPair <$> pairsList

@@ -11,9 +11,7 @@ module Agent (
   endValue
   ) where
 
-import GHC.Float (double2Float)
 import Data.List (sortOn)
-import Data.Random.Distribution.Binomial
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
@@ -133,23 +131,28 @@ stabilityHeur :: RState -> Value
 stabilityHeur = incorporateResult stabilityHeur_
 
 stabilityHeur_ :: RState -> Value
-stabilityHeur_ s = double2Float $ pBlackWin + (0.5 * pTie)
+stabilityHeur_ s = (numStableBlack + 0.5 * numUnclear) / totalNum
   where
-    numStableBlack = numStable s Black
-    numStableWhite = numStable s White
-    totalNum       = (2 * (boardSize s))^2
+    numStableBlack = fromIntegral $ numStable s Black
+    numStableWhite = fromIntegral $ numStable s White
+    totalNum       = fromIntegral $ (2 * (boardSize s))^2
     numUnclear     = totalNum - numStableBlack - numStableWhite
-    threshNum      =
-      0.5 * (fromIntegral $ totalNum + numStableWhite - numStableBlack)
-    pWhiteWin      = integralBinomialCDF numUnclear 0.5 $ floor $ threshNum - 1
-    pTie           = integralBinomialPDF numUnclear 0.5 $ floor threshNum
-    pBlackWin      = 1.0 - pWhiteWin - pTie
-    -- P(White wins) == P(X + numBlack < (totalNum - X) + numWhite)
+    -- threshNum      =
+    --   0.5 * (fromIntegral $ numUnclear + numStableWhite - numStableBlack)
+    -- pWhiteWin
+    --   | threshNum <= 0 = 0.0
+    --   | otherwise      =
+    --       integralBinomialCDF numUnclear 0.5 $ floor $ threshNum - 1
+    -- pTie
+    --   | threshNum <= 0 = 0.0
+    --   | otherwise      = integralBinomialPDF numUnclear 0.5 $ floor threshNum
+    -- pBlackWin      = 1.0 - pWhiteWin - pTie
+    -- P(White wins) == P(X + numBlack < (numUnclear - X) + numWhite)
     -- where X ~ Binom(numUnclear, 0.5) is the num of unclear squares that turn
     -- black.
     -- manipulating that, P(White wins)
-    -- == P(2*X + numBlack < totalNum + numWhite)
-    -- == P(X < 0.5*(totalNum + numWhite - numBlack))
+    -- == P(2*X + numBlack < numUnclear + numWhite)
+    -- == P(X < 0.5*(numUnclear + numWhite - numBlack))
 
 mixStabMovesHeurs :: Float -> RState -> Value
 -- a weighted average of the stability heuristic and the legalMoves heuristic
