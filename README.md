@@ -14,6 +14,7 @@ TODO: improve heuristic. Ideas:
 - MCTS somehow - perhaps to calibrate above metrics (regress win prob. on them?)
 
 Ways to get even better:
+- Get stats for how much of tree is being pruned
 - API for bots to compete against other bots
 - Stored games that bots can access to improve heuristic functions
 
