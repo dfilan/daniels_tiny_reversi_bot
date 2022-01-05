@@ -30,15 +30,19 @@ promptSettings = do
   putStrLn "Would you like to play as Black or White?"
   putStrLn "Type B or W (without the quotation marks)."
   let playError = "Sorry, please type B or W."
-      isBW x    = (elem x ["b", "B"]) || (elem x ["w", "W"])
-  playerStr <- promptUntil isBW playError
-  let user    = if' (elem playerStr ["B", "b"]) Black White
-      agent   = swapPlayer user
-      isUL x  = (elem x ["u", "U"]) || (elem x ["l", "L"])
-      ulError =  "Sorry, please type U or L"
-  putStrLn "Would you like to play against the uninformed agent (U), or the legalMoves agent (L)?"
-  heurStr <- promptUntil isUL ulError
-  let heur = if' (elem heurStr ["u", "U"]) simpleHeur legalMovesHeur
+  playerStr <- promptUntil (flip elem ["b", "B", "w", "W"]) playError
+  let user   = if' (elem playerStr ["B", "b"]) Black White
+      agent  = swapPlayer user
+      heurs  = ["u", "U", "l", "L", "s", "S", "m", "M"]
+      hError = "Sorry, please type U, L, S, or M."
+  putStrLn "Would you like to play against the uninformed agent (U), the legalMoves agent (L), the stableTokens agent (S), or the mixture agent (M)?"
+  heurStr <- promptUntil (flip elem heurs) hError
+  let heur
+        | elem heurStr ["u", "U"] = simpleHeur
+        | elem heurStr ["l", "L"] = legalMovesHeur
+        | elem heurStr ["s", "S"] = stabilityHeur
+        | elem heurStr ["m", "M"] = mixStabMovesHeurs 0.5
+        | otherwise               = simpleHeur
   putStrLn "How deep should the minimax search go for?"
   depthStr <- promptUntil (all isDigit) "Sorry, please enter only digits."
   let depth = stringToInt depthStr
