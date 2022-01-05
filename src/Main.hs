@@ -10,16 +10,16 @@ import Utils
 import Reversi
 import Agent
 
-type Settings = (Player, Int)
+type Settings = (Player, RState -> Value, Int)
 -- TODO: let player choose heuristic from predefined list.
 
 main :: IO ()
 main = do
-  (size, (agent, depth)) <- promptSettings
+  (size, (agent, heur, depth)) <- promptSettings
   putStrLn $ "The initial board:"
   let startState = startBoard size
   putStrLn $ show startState
-  loopPlay (agent, depth) startState Black
+  loopPlay (agent, heur, depth) startState Black
 
 promptSettings :: IO (Int, Settings)
 promptSettings = do
@@ -30,13 +30,19 @@ promptSettings = do
   putStrLn "Would you like to play as Black or White?"
   putStrLn "Type B or W (without the quotation marks)."
   let playError = "Sorry, please type B or W."
-  playerStr <- promptUntil (liftM2 (||) ("B" == ) ("W" ==)) playError
-  let user = if' (playerStr == "B") Black White
-  let agent = swapPlayer user
+      isBW x    = (elem x ["b", "B"]) || (elem x ["w", "W"])
+  playerStr <- promptUntil isBW playError
+  let user    = if' (elem playerStr ["B", "b"]) Black White
+      agent   = swapPlayer user
+      isUL x  = (elem x ["u", "U"]) || (elem x ["l", "L"])
+      ulError =  "Sorry, please type U or L"
+  putStrLn "Would you like to play against the uninformed agent (U), or the legalMoves agent (L)?"
+  heurStr <- promptUntil isUL ulError
+  let heur = if' (elem heurStr ["u", "U"]) simpleHeur legalMovesHeur
   putStrLn "How deep should the minimax search go for?"
   depthStr <- promptUntil (all isDigit) "Sorry, please enter only digits."
   let depth = stringToInt depthStr
-  return (size, (agent, depth))
+  return (size, (agent, heur, depth))
   
 promptUntil :: (String -> Bool) -> String -> IO String
 promptUntil test error = do
@@ -51,7 +57,8 @@ loopPlay settings state player
   | player == agent  = agentMove settings state
   | otherwise        = userMove settings state
   where
-    agent = fst settings
+    fst3 (x,y,z) = x
+    agent        = fst3 settings
   
 endGame :: RState -> IO ()
 endGame state = case getResult state of
@@ -61,12 +68,12 @@ endGame state = case getResult state of
   Just Tie      -> putStrLn "It's a tie - thanks for playing!"
 
 agentMove :: Settings -> RState -> IO ()
-agentMove (agent, d) state
+agentMove (agent, heur, d) state
   | Set.null $ getLegalMoves state agent = do
       putStrLn "\nThe bot has no available moves."
-      loopPlay (agent, d) state $ swapPlayer agent
+      loopPlay (agent, heur, d) state $ swapPlayer agent
   | otherwise =
-      case minimaxMoveVal d simpleHeur agent state of
+      case minimaxMoveVal d heur agent state of
         Nothing          ->
           putStrLn "\nThe bot has no legal moves - this should never happen"
         Just (move, val) -> do
@@ -74,13 +81,13 @@ agentMove (agent, d) state
           putStrLn "\nThe bot's move:"
           putStrLn $ show nextState
           putStrLn $ "Game value: " ++ show val
-          loopPlay (agent, d) nextState $ swapPlayer agent
+          loopPlay (agent, heur, d) nextState $ swapPlayer agent
 
 userMove :: Settings -> RState -> IO ()
-userMove (agent, d) state
+userMove (agent, heur, d) state
   | Set.null $ getLegalMoves state (swapPlayer agent) = do
       putStrLn "\nYou have no legal moves. It is now the bot's move."
-      loopPlay (agent, d) state agent
+      loopPlay (agent, heur, d) state agent
   | otherwise = do
       putStrLn "\nPlease input a move, such as 'a1'"
       let stringTest =
@@ -93,7 +100,7 @@ userMove (agent, d) state
           nextState = playMove state move
       putStrLn "\nYour move:"
       putStrLn $ show nextState
-      loopPlay (agent, d) nextState agent
+      loopPlay (agent, heur, d) nextState agent
 
 isCoord :: String -> Bool
 isCoord = (all isDigit) . snd . (span isAlpha)
@@ -105,4 +112,3 @@ readMove p str = Move p (xCoord, yCoord)
     xCoord          = alphasToInt letters
     numPart         = takeWhile isDigit nums
     yCoord          = (stringToInt numPart) - 1
-    

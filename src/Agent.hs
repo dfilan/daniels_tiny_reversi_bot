@@ -3,11 +3,12 @@
 module Agent (
   Value,
   minimaxMoveVal,
-  simpleHeur
+  simpleHeur,
+  legalMovesHeur
   ) where
 
 import Data.List (sortOn)
-import Data.Random.Distribution
+-- import Data.Random.Distribution
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
@@ -111,6 +112,8 @@ numLegalMoves :: RState -> Player -> Int
 numLegalMoves = (Set.size .) . getLegalMoves
 
 legalMovesHeur :: RState -> Value
+-- basically: the heuristic that you're more likely to win if you have more
+-- legal moves than your opponent.
 legalMovesHeur = incorporateResult legalMovesHeur_
 
 legalMovesHeur_ :: RState -> Value
@@ -119,28 +122,31 @@ legalMovesHeur_ s = bMoves / (bMoves + wMoves)
     bMoves = fromIntegral $ numLegalMoves s Black
     wMoves = fromIntegral $ numLegalMoves s White
 
-stabilityHeur :: RState -> Value
-stabilityHeur = incorporateResult stabilityHeur_
+-- stabilityHeur :: RState -> Value
+-- -- basically: the heuristic that you're more likely to win if you have more
+-- -- tokens 'locked in' than your opponent.
+-- stabilityHeur = incorporateResult stabilityHeur_
 
-stabilityHeur_ :: RState -> Value
-stabilityHeur_ s = pBlackWin + (0.5 * pTie)
-  where
-    numStableBlack = numStable s Black
-    numStableWhite = numStable s White
-    totalNum       = (2 * (boardSize s))^2
-    numUnclear     = totalNum - numStableBlack - numStableWhite
-    threshNum      = 0.5 * (totalNum + numWhite - numBlack)
-    pWhiteWin      = integralBinomialCDF numUnclear 0.5 $ threshNum - 1
-    pTie           = integralBinomialPDF numUnclear 0.5 threshNum
-    pBlackWin      = 1.0 - pWhiteWin - pTie
-    -- P(White wins) == P(X + numBlack < (totalNum - X) + numWhite)
-    -- where X ~ Binom(numUnclear, 0.5) is the num of unclear squares that turn
-    -- black.
-    -- manipuulating that, P(White wins)
-    -- == P(2*X + numBlack < totalNum + numWhite)
-    -- == P(X < 0.5*(totalNum + numWhite - numBlack))
+-- stabilityHeur_ :: RState -> Value
+-- stabilityHeur_ s = pBlackWin + (0.5 * pTie)
+--   where
+--     numStableBlack = numStable s Black
+--     numStableWhite = numStable s White
+--     totalNum       = (2 * (boardSize s))^2
+--     numUnclear     = totalNum - numStableBlack - numStableWhite
+--     threshNum      = 0.5 * (totalNum + numWhite - numBlack)
+--     pWhiteWin      = integralBinomialCDF numUnclear 0.5 $ threshNum - 1
+--     pTie           = integralBinomialPDF numUnclear 0.5 threshNum
+--     pBlackWin      = 1.0 - pWhiteWin - pTie
+--     -- P(White wins) == P(X + numBlack < (totalNum - X) + numWhite)
+--     -- where X ~ Binom(numUnclear, 0.5) is the num of unclear squares that turn
+--     -- black.
+--     -- manipuulating that, P(White wins)
+--     -- == P(2*X + numBlack < totalNum + numWhite)
+--     -- == P(X < 0.5*(totalNum + numWhite - numBlack))
 
-mixStabMovesHeurs :: Float -> RState -> Value
-mixStabMovesHeurs p s = p * (stabilityHeur s) + (1-p) * (legalMovesHeur s)
+-- mixStabMovesHeurs :: Float -> RState -> Value
+-- -- a weighted average of the stability heuristic and the legalMoves heuristic
+-- mixStabMovesHeurs p s = p * (stabilityHeur s) + (1-p) * (legalMovesHeur s)
 
 -- further TODO: read stuart abt quiescence or ordering or whatever
