@@ -1,12 +1,10 @@
 Simple reversi bot.
 
-How to play: compile src/Main.hs
+How to play: execute `cabal run`
 
-Biggest TODO: figure out how to use cabal to install random-fu-0.2.7.7,
-so that my code actually compiles
+Biggest TODO: figure out why code is so slow
 
 TODO: improve heuristic. Ideas:
-- compare 'locked tokens', i.e. those tokens that can't be taken from you.
 - think about odd vs even number of successive takes across a line.
   - maybe parity until you get a corner?
 - focus on things of length >= 3
@@ -15,7 +13,6 @@ TODO: improve heuristic. Ideas:
 
 Ways to get even better:
 - Get stats for how much of tree is being pruned
-- API for bots to compete against other bots
 - Stored games that bots can access to improve heuristic functions
 
 Housekeeping:
