@@ -4,9 +4,11 @@ module Agent (
   Value,
   minimaxMoveVal,
   simpleHeur,
+  numLegalMoves,
   legalMovesHeur,
   stabilityHeur,
-  mixStabMovesHeurs
+  mixStabMovesHeurs,
+  endValue
   ) where
 
 import GHC.Float (double2Float)
@@ -87,13 +89,13 @@ minVal :: Int -> (RState -> Value) -> Value -> Value -> Set.Set RState -> Value
 minVal d heur a b = minVal_ d heur a b (2.0) . (enqueueStates White heur)
 
 minVal_ ::
-  Int ->
-  (RState -> Value) ->
-  Value -> -- alpha
-  Value -> -- beta
-  Value -> -- v
-  [RState] ->
-  Value
+  Int
+  -> (RState -> Value)
+  -> Value -- alpha
+  -> Value -- beta
+  -> Value -- v
+  -> [RState]
+  -> Value
 minVal_ d heur a b v = \case
   [] -> v
   x:xs
